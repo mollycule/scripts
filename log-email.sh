@@ -9,6 +9,7 @@
 # could cause issues if piping is desired in the future
 
 log_file="/var/log/example.log"
+# Redirect stdout to log_file and THEN redirect stderr to log_file
 exec 1>$log_file 2>&1
 
 # Log info level
