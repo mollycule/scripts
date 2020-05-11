@@ -1,0 +1,42 @@
+# An example OpenConnect VPN netctl profile
+# Handles two factor authentication with Okta
+# Warning: requires customized configuration
+# Warning: assumes the use of pass
+
+# TODO: move logic to a netctl hook
+
+Description='Example OpenConnect VPN'
+Interface=vpn
+Connection=tuntap
+Mode=tun
+IP=no
+
+PIDFILE="/run/openconnect_${Interface}.pid"
+DISPLAY=":0"
+# TODO: make okta optional
+TWO_AUTH="1"
+
+# ----- User-specific settings -----
+
+DNS=('foo' 'bar')
+BindsToInterfaces=(foo bar)
+
+LOCAL_USR="$USER"
+REMOTE_USR="example-user@vpn.com"
+SERVER="example.vpn.com"
+
+# TODO: ensure pass and gpg are installed
+PASS_PASSWORD="example-openconnect-vpn" # `pass` and `gpg` must be configured
+SSL_HASH="example-hash" # find by manually running `openconnect example.vpn.com`
+
+# TODO: throw error if pass isn't configured properly
+PASSWORD_CMD=$(su ${LOCAL_USR} -c "DISPLAY=${DISPLAY} pass ${PASS_PASSWORD} | head -n 1")
+PASSWD="${PASSWORD_CMD}\n${TWO_AUTH}\n" # \n used to progress through the prompt
+
+# ----- Systemctl settings -----
+
+# TODO: make more readable
+# TODO: make vpn-slice optional
+ExecUpPost="echo -e \"${PASSWD}\" | sudo /usr/bin/openconnect --background --pid-file='${PIDFILE}' --interface='${Interface}' --user='${REMOTE_USR}' --passwd-on-stdin ${SERVER} --servercert='${SSL_HASH}' --script='vpn-slice example-ip-addresses'" # vpn-slice used for split tunneling
+
+ExecDownPre="kill -INT $(cat ${PIDFILE}) ; resolvconf -d ${Interface} ; ip link delete ${Interface}"
